@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Game Selection</title>
+<style>
+  body, html { 
+    margin:0; padding:0; height:100%; overflow:hidden; font-family:sans-serif; 
+    background: url('https://static.vecteezy.com/system/resources/thumbnails/008/818/339/small_2x/the-background-of-the-technological-process-of-the-computer-system-light-blue-lines-on-a-dark-background-the-animation-has-a-cyclic-video.jpg') repeat;
+    background-size: cover;
+    animation: scrollBackground 20s linear infinite;
+  }
+
+  @keyframes scrollBackground {
+    from { background-position: 0 0; }
+    to { background-position: -1000px 0; }
+  }
+
+  #particles-js { 
+    position: fixed; 
+    width: 100%; 
+    height: 100%; 
+    top: 0; 
+    left: 0; 
+    z-index: -1; 
+  }
+
+  video { position:fixed; top:50%; left:50%; min-width:100%; min-height:100%; width:auto; height:auto; z-index:-2; transform:translate(-50%,-50%); object-fit:cover; }
+  
+  .container { 
+    max-width:900px; margin:30px auto; background:rgba(255,255,255,0.9); 
+    border-radius:15px; box-shadow:0 0 20px rgba(0,0,0,0.3); 
+    padding:30px; position:relative; z-index:1; text-align:center; 
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+
+  @keyframes glow {
+    from { box-shadow: 0 0 20px #007acc; }
+    to { box-shadow: 0 0 40px #00c3ff; }
+  }
+
+  h1 { color:#007acc; font-size:2em; }
+  .score-board, .timer { font-size:1.5em; margin:10px; }
+  button { 
+    background:#007acc; color:white; border:none; padding:15px 25px; margin:10px; 
+    font-size:18px; border-radius:10px; cursor:pointer; 
+    transition: box-shadow 0.3s;
+  }
+  button:hover { box-shadow: 0 0 15px #00c3ff; }
+
+  .section { display:none; }
+  .section.active { display:block; }
+  .hint { background:#e0f7fa; padding:10px; margin-top:10px; border-left:4px solid #007acc; display:none; font-size:1.2em; }
+  .question h3 { font-size:1.4em; }
+  #analysis-box {
+    text-align: left;
+    margin-top: 20px;
+    background: #f0f8ff;
+    padding: 15px;
+    border-radius: 10px;
+    max-height: 250px;
+    overflow-y: auto;
+    font-size: 1.1em;
+  }
+  #analysis-box h3 {
+    margin-top: 0;
+  }
+</style>
+</head>
+<body>
+
+<div id="particles-js"></div>
+
+<video autoplay muted loop>
+  <source src="0_Mathematics_Physics_3840x2160.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
+
+<div class="container" id="start-screen">
+  <h1>Welcome to the Game Selection</h1>
+  <button onclick="startQuiz()">Start Quiz</button>
+  <button onclick="startMaze()">Start Maze Game</button>
+</div>
+
+<div class="container section" id="quiz-container">
+  <h1>?? AI Powered Maths Quiz</h1>
+  <div class="score-board">Score: <span id="score">0</span></div>
+  <div class="timer">Time Left: <span id="timer">120</span> seconds</div>
+  <div class="level-select" id="levelButtons">
+    <button onclick="selectLevel('easy')">Easy</button>
+    <button onclick="selectLevel('medium')">Medium</button>
+    <button onclick="selectLevel('hard')">Hard</button>
+  </div>
+  <div id="quiz-section" class="section">
+    <div id="question-box"></div>
+  </div>
+  <div class="next-level" id="nextLevel" style="display:none;">
+    <button onclick="goToNextLevel()">Next Level</button>
+  </div>
+  <div class="champion-message" id="championMessage" style="display:none;">
+    ?? Congratulations! You are the Maths Champion! ??
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+<script>
+// particles.js config
+particlesJS("particles-js", {
+  "particles": {
+    "number": { "value": 50 },
+    "color": { "value": "#00c3ff" },
+    "shape": { "type": "circle" },
+    "opacity": { "value": 0.5 },
+    "size": { "value": 3 },
+    "move": { "enable": true, "speed": 2 }
+  },
+  "interactivity": {
+    "events": { "onhover": { "enable": true, "mode": "repulse" } }
+  }
+});
+</script>
+
+<script>
+let currentLevel = '';
+let currentQuestionIndex = 0;
+let score = 0;
+let hintCount = 0;
+let timerInterval;
+let timeLeft = 120;
+
+// Keep track of wrong questions per level
+let wrongQuestions = [];
+
+const questions = {
+  easy: [
+    { question: "Which of the following is not a linear equation in one variable?", options:["33z+5 = 0","33(x+y) = 0","33x+5 = 0","33y+5 = 0"], answer:1, hint:"In 33(x+y)=0, x and y are two variables." },
+    { question: "The solution of 2x-3=7 is:", options:["5","7","12","11"], answer:0, hint:"2x=10 ? x=5" },
+    { question: "The solution of 2y + 9 = 4 is:", options:["9/2","4/9","-?","-5/2"], answer:3, hint:"2y= -5 ? y=-5/2" },
+    { question: "The solution of y/5 = 10 is:", options:["15","10","50","5"], answer:2, hint:"y=5×10=50" },
+    { question: "What should be added to -7/3 to get 3/7?", options:["21/58","58/21","47/21","50/21"], answer:1, hint:"x=3/7+7/3=58/21" }
+  ],
+  medium: [
+    { question:"The pairs of equations x+2y-5=0 and -4x-8y+20=0 have:", options:["Unique solution","Exactly two solutions","Infinitely many solutions","No solution"], answer:2, hint:"a1/a2=b1/b2?c1/c2" },
+    { question:"If a pair of linear equations is consistent, then the lines are:", options:["Parallel","Always coincident","Always intersecting","Intersecting or coincident"], answer:3, hint:"They must meet or coincide." },
+    { question:"The pairs of equations 9x+3y+12=0 and 18x+6y+26=0 have:", options:["Unique solution","Exactly two solutions","Infinitely many solutions","No solution"], answer:3, hint:"Parallel lines ? no solution." },
+    { question:"The pair of equations x=a and y=b graphically represents lines which are:", options:["parallel","intersecting at (b,a)","coincident","intersecting at (a,b)"], answer:3, hint:"They intersect at (a,b)." },
+    { question:"The pair of equations 5x–15y=8 and 3x–9y=24/5 has:", options:["one solution","two solutions","infinitely many solutions","no solution"], answer:2, hint:"They have infinitely many solutions." }
+  ],
+  hard: [
+    { question:"The pair of equations x+2y+5=0 and –3x–6y+1=0 have:", options:["a unique solution","exactly two solutions","infinitely many solutions","no solution"], answer:3, hint:"a1/a2=b1/b2?c1/c2 ? no solution." },
+    { question:"The value of c for which cx–y=2 and 6x–2y=3 have infinitely many solutions:", options:["3","-3","-12","no value"], answer:3, hint:"No c can satisfy a1/a2=b1/b2=c1/c2." },
+    { question:"A pair with unique solution x=2, y=-3 is:", options:["x+y=-1;2x–3y=-5","2x+5y=-11;4x+10y=-22","2x–y=1;3x+2y=0","x–4y–14=0;5x–y–13=0"], answer:1, hint:"Option (b) fits values." },
+    { question:"If pair has unique solution, lines will:", options:["coincide","intersect at one point","parallel","parallel to x-axis"], answer:1, hint:"They intersect at one point." },
+    { question:"Graph of 4x+3y–1=5 and 12x+9y=15:", options:["parallel lines","coincident lines","intersecting lines","perpendicular lines"], answer:0, hint:"Parallel lines ? no solution." }
+  ]
+};
+
+function startQuiz(){
+  document.getElementById('start-screen').style.display='none';
+  document.getElementById('quiz-container').style.display='block';
+  selectLevel('easy');
+}
+
+function startMaze(){ alert("Maze game is not implemented yet."); }
+
+function selectLevel(level){
+  currentLevel=level; 
+  currentQuestionIndex=0; 
+  score=0; 
+  hintCount=0; 
+  timeLeft=120;
+  wrongQuestions = [];
+  document.getElementById('score').innerText=score;
+  document.getElementById('timer').innerText=timeLeft;
+  document.getElementById('levelButtons').style.display='none';
+  document.getElementById('quiz-section').classList.add('active');
+  document.getElementById('nextLevel').style.display='none';
+  document.getElementById('championMessage').style.display='none';
+  clearInterval(timerInterval); 
+  startTimer(); 
+  loadQuestion();
+}
+
+function startTimer(){
+  timerInterval=setInterval(()=>{
+    timeLeft--; 
+    document.getElementById('timer').innerText=timeLeft;
+    if(timeLeft<=0){ 
+      clearInterval(timerInterval); 
+      alert("? Time's up!"); 
+      showAnalysisAndNext();
+    }
+  },1000);
+}
+
+function loadQuestion(){
+  const q=questions[currentLevel][currentQuestionIndex];
+  const box=document.getElementById("question-box");
+  box.innerHTML=`
+  <div class="question">
+    <h3>Q${currentQuestionIndex+1}: ${q.question}</h3>
+    ${q.options.map((opt,i)=>`<button onclick="checkAnswer(${i})">${opt}</button>`).join('')}
+    <br><button onclick="showHint()">DAV HINT</button>
+    <div class="hint" id="hint-box">${q.hint}</div>
+  </div>`;
+  document.getElementById("hint-box").style.display="none";
+}
+
+function showHint(){
+  document.getElementById("hint-box").style.display="block";
+  hintCount++;
+  if(hintCount > 2){
+    score = Math.max(0, score - 20);
+    document.getElementById('score').innerText = score;
+    alert("?? Used DAV HINT more than twice: -20 points penalty");
+  }
+}
+
+function checkAnswer(selected){
+  const q=questions[currentLevel][currentQuestionIndex];
+  if(selected===q.answer){ 
+    alert("? Correct! +50 points"); 
+    score+=50; 
+  }
+  else { 
+    alert("? Wrong! -10 points"); 
+    score=Math.max(0,score-10); 
+
+    // Save the wrong question info for analysis
+    wrongQuestions.push({
+      question: q.question,
+      selectedAnswer: q.options[selected],
+      correctAnswer: q.options[q.answer],
+      hint: q.hint
+    });
+  }
+  document.getElementById('score').innerText=score;
+  hintCount=0; 
+  currentQuestionIndex++;
+  if(currentQuestionIndex>=questions[currentLevel].length){
+    clearInterval(timerInterval);
+    showAnalysisAndNext();
+  } else {
+    loadQuestion();
+  }
+}
+
+function showAnalysisAndNext(){
+  const box=document.getElementById("question-box");
+  let analysisHTML = `<h3>Level: ${currentLevel.toUpperCase()} Analysis</h3>`;
+  analysisHTML += `<p>Total questions: ${questions[currentLevel].length}</p>`;
+  analysisHTML += `<p>Wrong answers: ${wrongQuestions.length}</p>`;
+
+  if(wrongQuestions.length > 0){
+    analysisHTML += `<div id="analysis-box">`;
+    wrongQuestions.forEach((wq, idx) => {
+      analysisHTML += `<b>Q${idx+1}:</b> ${wq.question}<br>`;
+      analysisHTML += `<b>Your answer:</b> ${wq.selectedAnswer}<br>`;
+      analysisHTML += `<b>Correct answer:</b> ${wq.correctAnswer}<br>`;
+      analysisHTML += `<b>Explanation:</b> ${wq.hint}<br><br>`;
+    });
+    analysisHTML += `</div>`;
+  } else {
+    analysisHTML += `<p>Excellent! No wrong answers.</p>`;
+  }
+
+  box.innerHTML = analysisHTML;
+  document.getElementById("nextLevel").style.display="block";
+}
+
+function goToNextLevel(){
+  clearInterval(timerInterval);
+  const levels=['easy','medium','hard'];
+  const i=levels.indexOf(currentLevel);
+  if(i<levels.length-1){ 
+    selectLevel(levels[i+1]); 
+  }
+  else{
+    document.getElementById('quiz-section').classList.remove('active');
+    document.getElementById('nextLevel').style.display='none';
+    document.getElementById('championMessage').style.display='block';
+  }
+}
+</script>
+</body>
+</html>
